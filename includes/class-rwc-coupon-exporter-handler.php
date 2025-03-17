@@ -3,7 +3,7 @@
  * Export handler class
  *
  * @package RWC_Coupon_Exporter
- * @since 1.0.0
+ * @since 1.3.2
  */
 
 class RWC_Coupon_Exporter_Handler {
@@ -26,7 +26,7 @@ class RWC_Coupon_Exporter_Handler {
     /**
      * Process export request
      *
-     * @since 1.0.0
+     * @since 1.3.2
      */
     public function process_export() {
         try {
@@ -46,16 +46,19 @@ class RWC_Coupon_Exporter_Handler {
      */
     private function validate_requirements() {
         if (!class_exists('WC_Coupon')) {
-            throw new Exception('WooCommerce Coupon functionality is not available.');
+            /* translators: Error message displayed when WooCommerce coupon functionality is not available */
+            throw new Exception(esc_html__('WooCommerce Coupon functionality is not available.', 'rwc-coupon-exporter'));
         }
 
         if (!isset($_POST['rwc_coupon_export_nonce']) || 
             !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['rwc_coupon_export_nonce'])), 'rwc_coupon_export_nonce')) {
-            throw new Exception('Security check failed.');
+            /* translators: Error message displayed when the security verification fails */
+            throw new Exception(esc_html__('Security check failed.', 'rwc-coupon-exporter'));
         }
 
         if (!current_user_can('manage_woocommerce')) {
-            throw new Exception('You do not have sufficient permissions to export coupons.');
+            /* translators: Error message displayed when the user doesn't have sufficient permissions */
+            throw new Exception(esc_html__('You do not have sufficient permissions to export coupons.', 'rwc-coupon-exporter'));
         }
     }
 
@@ -67,69 +70,69 @@ class RWC_Coupon_Exporter_Handler {
      * @throws Exception If no coupons are found
      */
     private function get_coupons() {
-        add_filter('posts_per_page', array($this, 'limit_batch_size'));
-
-        $coupons = get_posts(array(
+        $args = array(
             'posts_per_page' => -1,
             'post_type'      => 'shop_coupon',
             'post_status'    => 'publish',
-            'fields'         => 'ids'
-        ));
+            'fields'         => 'ids',
+            'orderby'        => 'ID',
+            'order'          => 'ASC'
+        );
 
-        remove_filter('posts_per_page', array($this, 'limit_batch_size'));
+        $coupons = get_posts($args);
 
         if (empty($coupons)) {
-            throw new Exception('No coupons found to export.');
+            /* translators: Error message displayed when no coupons are found in the database */
+            throw new Exception(esc_html__('No coupons found to export.', 'rwc-coupon-exporter'));
         }
 
         return $coupons;
     }
 
     /**
-     * Limit batch size for large exports
-     *
-     * @since 1.3.1
-     * @param int $limit Current limit
-     * @return int Modified limit
-     */
-    public function limit_batch_size($limit) {
-        return min(100, $limit);
-    }
-
-    /**
      * Export coupons to CSV
      *
-     * @since 1.3.1
+     * @since 1.3.2
      * @param array $coupons Array of coupon IDs
      */
     private function export_coupons($coupons) {
-        wp_raise_memory_limit('admin');
-        
-        while (ob_get_level()) {
-            ob_end_clean();
-        }
-
-        $filename = sanitize_file_name('woocommerce-coupons-' . gmdate('Y-m-d-His') . '.csv');
-        $headers = $this->get_csv_headers();
-        
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=' . $filename);
-        header('Pragma: no-cache');
-        header('Expires: 0');
-
-        $output = fopen('php://output', 'w');
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
-        fputcsv($output, array_values($headers));
-
-        foreach ($coupons as $coupon_id) {
-            $row = $this->get_coupon_data($coupon_id);
-            if ($row) {
-                fputcsv($output, array_map('esc_html', $row));
+        try {
+            // Clean output buffer
+            if (ob_get_level()) {
+                ob_end_clean();
             }
-        }
 
-        wp_die();
+            // Set headers for CSV download
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename=woocommerce-coupons-' . date('Y-m-d-His') . '.csv');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+
+            // Create output handle
+            $output = fopen('php://output', 'w');
+
+            // Add UTF-8 BOM
+            fputs($output, "\xEF\xBB\xBF");
+
+            // Get and write headers
+            $headers = array_values($this->get_csv_headers());
+            fputcsv($output, $headers);
+
+            // Write coupon data
+            foreach ($coupons as $coupon_id) {
+                $row = $this->get_coupon_data($coupon_id);
+                if ($row) {
+                    fputcsv($output, $row);
+                }
+            }
+
+            // Close the output
+            fclose($output);
+            exit();
+
+        } catch (Exception $e) {
+            $this->handle_error($e);
+        }
     }
 
     /**
@@ -140,22 +143,38 @@ class RWC_Coupon_Exporter_Handler {
      */
     private function get_csv_headers() {
         $headers = array(
-            'code'                => 'Code',
-            'description'         => 'Description',
-            'discount_type'       => 'Discount Type',
-            'amount'             => 'Amount',
-            'expiry_date'        => 'Expiry Date',
-            'minimum_spend'      => 'Minimum Spend',
-            'maximum_spend'      => 'Maximum Spend',
-            'individual_use'     => 'Individual Use',
-            'exclude_sale_items' => 'Exclude Sale Items',
-            'usage_limit'        => 'Usage Limit',
-            'usage_count'        => 'Usage Count',
-            'products'           => 'Products',
-            'exclude_products'   => 'Exclude Products',
-            'categories'         => 'Product Categories',
-            'exclude_categories' => 'Exclude Categories',
-            'email_restrictions' => 'Email Restrictions'
+            /* translators: CSV column header for the coupon code field */
+            'code'                => esc_html__('Code', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the coupon description field */
+            'description'         => esc_html__('Description', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the discount type field (e.g., percentage, fixed amount) */
+            'discount_type'       => esc_html__('Discount Type', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the discount amount field */
+            'amount'             => esc_html__('Amount', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the coupon expiry date field */
+            'expiry_date'        => esc_html__('Expiry Date', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the minimum spend requirement field */
+            'minimum_spend'      => esc_html__('Minimum Spend', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the maximum spend limit field */
+            'maximum_spend'      => esc_html__('Maximum Spend', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the individual use only setting field */
+            'individual_use'     => esc_html__('Individual Use', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the exclude sale items setting field */
+            'exclude_sale_items' => esc_html__('Exclude Sale Items', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the usage limit field */
+            'usage_limit'        => esc_html__('Usage Limit', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the current usage count field */
+            'usage_count'        => esc_html__('Usage Count', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the included products field */
+            'products'           => esc_html__('Products', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the excluded products field */
+            'exclude_products'   => esc_html__('Exclude Products', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the included product categories field */
+            'categories'         => esc_html__('Product Categories', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the excluded product categories field */
+            'exclude_categories' => esc_html__('Exclude Categories', 'rwc-coupon-exporter'),
+            /* translators: CSV column header for the email restrictions field */
+            'email_restrictions' => esc_html__('Email Restrictions', 'rwc-coupon-exporter')
         );
 
         return apply_filters('rwc_coupon_exporter_csv_headers', $headers);
@@ -192,12 +211,13 @@ class RWC_Coupon_Exporter_Handler {
                 $this->format_product_list($wc_coupon->get_excluded_product_ids()),
                 $this->format_category_list($wc_coupon->get_product_categories()),
                 $this->format_category_list($wc_coupon->get_excluded_product_categories()),
-                implode(', ', array_map('esc_html', $wc_coupon->get_email_restrictions()))
+                implode(', ', array_map('esc_html', (array)$wc_coupon->get_email_restrictions()))
             );
 
             return apply_filters('rwc_coupon_exporter_csv_row', $row, $wc_coupon);
         } catch (Exception $e) {
-            $this->log_error('Error processing coupon #' . $coupon_id . ': ' . $e->getMessage());
+            /* translators: %1$d: coupon ID, %2$s: error message */
+            $this->log_error(sprintf(esc_html__('Error processing coupon #%1$d: %2$s', 'rwc-coupon-exporter'), $coupon_id, $e->getMessage()));
             return false;
         }
     }
@@ -205,7 +225,7 @@ class RWC_Coupon_Exporter_Handler {
     /**
      * Format product list for CSV
      *
-     * @since 1.0.0
+     * @since 1.3.2
      * @param array $product_ids Array of product IDs
      * @return string Formatted product list
      */
@@ -225,7 +245,7 @@ class RWC_Coupon_Exporter_Handler {
     /**
      * Format category list for CSV
      *
-     * @since 1.0.0
+     * @since 1.3.2
      * @param array $category_ids Array of category IDs
      * @return string Formatted category list
      */
@@ -239,7 +259,8 @@ class RWC_Coupon_Exporter_Handler {
                         $names[] = $term->name;
                     }
                 } catch (Exception $e) {
-                    $this->log_error('Error processing category #' . $category_id . ': ' . $e->getMessage());
+                    /* translators: %1$d: category ID, %2$s: error message */
+                    $this->log_error(sprintf(esc_html__('Error processing category #%1$d: %2$s', 'rwc-coupon-exporter'), $category_id, $e->getMessage()));
                     continue;
                 }
             }
@@ -259,11 +280,12 @@ class RWC_Coupon_Exporter_Handler {
             array(
                 'page' => 'coupon-exporter',
                 'error' => '1',
-                'message' => urlencode($e->getMessage())
+                'message' => urlencode($e->getMessage()),
+                '_wpnonce' => wp_create_nonce('rwc_coupon_export_error')
             ),
             admin_url('admin.php')
         ));
-        wp_die();
+        exit();
     }
 
     /**
@@ -273,7 +295,7 @@ class RWC_Coupon_Exporter_Handler {
      * @param string $message Error message
      */
     private function log_error($message) {
-        if (class_exists('WC_Logger')) {
+        if ($this->logger) {
             $this->logger->error(
                 'Coupon Export Error: ' . $message,
                 array('source' => 'rwc-coupon-exporter')

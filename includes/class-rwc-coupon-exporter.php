@@ -3,6 +3,7 @@
  * Main plugin class
  *
  * @package RWC_Coupon_Exporter
+ * @since 1.3.2
  */
 
 class RWC_Coupon_Exporter {
@@ -52,7 +53,12 @@ class RWC_Coupon_Exporter {
         // Check if WooCommerce is active
         if (!class_exists('WooCommerce')) {
             add_action('admin_notices', function() {
-                echo '<div class="error"><p>Coupon Exporter for WooCommerce requires WooCommerce to be installed and activated.</p></div>';
+                /* translators: %s: Plugin name "WooCommerce" that needs to be installed and activated */
+                $message = sprintf(
+                    esc_html__('RWC Coupon Exporter requires %s to be installed and activated.', 'rwc-coupon-exporter'),
+                    '<strong>WooCommerce</strong>'
+                );
+                echo '<div class="error"><p>' . wp_kses($message, array('strong' => array())) . '</p></div>';
             });
             $requirements_met = false;
         }
@@ -61,7 +67,12 @@ class RWC_Coupon_Exporter {
         if (class_exists('WooCommerce')) {
             if (version_compare(WC_VERSION, '3.0', '<')) {
                 add_action('admin_notices', function() {
-                    echo '<div class="error"><p>Coupon Exporter for WooCommerce requires WooCommerce version 3.0 or higher.</p></div>';
+                    /* translators: %s: Required minimum WooCommerce version number */
+                    $message = sprintf(
+                        esc_html__('RWC Coupon Exporter requires WooCommerce version %s or higher.', 'rwc-coupon-exporter'),
+                        '3.0'
+                    );
+                    echo '<div class="error"><p>' . esc_html($message) . '</p></div>';
                 });
                 $requirements_met = false;
             }
@@ -70,7 +81,12 @@ class RWC_Coupon_Exporter {
         // Check PHP version
         if (version_compare(PHP_VERSION, '7.4', '<')) {
             add_action('admin_notices', function() {
-                echo '<div class="error"><p>Coupon Exporter for WooCommerce requires PHP version 7.4 or higher.</p></div>';
+                /* translators: %s: Required minimum PHP version number */
+                $message = sprintf(
+                    esc_html__('RWC Coupon Exporter requires PHP version %s or higher.', 'rwc-coupon-exporter'),
+                    '7.4'
+                );
+                echo '<div class="error"><p>' . esc_html($message) . '</p></div>';
             });
             $requirements_met = false;
         }

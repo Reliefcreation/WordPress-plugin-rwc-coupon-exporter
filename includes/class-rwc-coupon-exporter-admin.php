@@ -3,7 +3,7 @@
  * Admin functionality class
  *
  * @package RWC_Coupon_Exporter
- * @since 1.0.0
+ * @since 1.3.2
  */
 
 class RWC_Coupon_Exporter_Admin {
@@ -22,8 +22,10 @@ class RWC_Coupon_Exporter_Admin {
         if (current_user_can('manage_woocommerce')) {
             add_submenu_page(
                 'woocommerce',
-                'Export Coupons',
-                'Export Coupons',
+                /* translators: Admin page title for the coupon exporter */
+                esc_html__('Export Coupons', 'rwc-coupon-exporter'),
+                /* translators: Admin menu item label for the coupon exporter */
+                esc_html__('Export Coupons', 'rwc-coupon-exporter'),
                 'manage_woocommerce',
                 'coupon-exporter',
                 array($this, 'render_admin_page')
@@ -36,11 +38,13 @@ class RWC_Coupon_Exporter_Admin {
      */
     public function render_admin_page() {
         if (!current_user_can('manage_woocommerce')) {
-            wp_die('You do not have sufficient permissions to access this page.');
+            /* translators: Error message shown when a user tries to access a page without proper permissions */
+            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'rwc-coupon-exporter'));
         }
 
         // Verify nonce and check for errors
-        if (isset($_GET['error']) && isset($_GET['message']) && check_admin_referer('rwc_coupon_export_error')) {
+        if (isset($_GET['error']) && isset($_GET['message']) && isset($_GET['_wpnonce']) && 
+            wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'rwc_coupon_export_error')) {
             $message = sanitize_text_field(wp_unslash($_GET['message']));
             echo '<div class="error"><p>' . esc_html($message) . '</p></div>';
         }
@@ -55,7 +59,8 @@ class RWC_Coupon_Exporter_Admin {
         check_admin_referer('rwc_coupon_export_nonce', 'rwc_coupon_export_nonce');
         
         if (!current_user_can('manage_woocommerce')) {
-            wp_die('You do not have sufficient permissions to export coupons.');
+            /* translators: Error message shown when a user tries to export coupons without proper permissions */
+            wp_die(esc_html__('You do not have sufficient permissions to export coupons.', 'rwc-coupon-exporter'));
         }
 
         $handler = new RWC_Coupon_Exporter_Handler();

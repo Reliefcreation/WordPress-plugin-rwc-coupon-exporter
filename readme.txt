@@ -4,7 +4,7 @@ Tags: woocommerce, coupons, export, csv
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 3.0
@@ -101,6 +101,13 @@ The plugin provides several filters to extend its functionality:
 
 == Changelog ==
 
+= 1.3.2 =
+* Fixed HTML code appearing in exported CSV files
+* Improved CSV file generation and download handling
+* Enhanced error handling with proper nonce verification
+* Optimized memory usage during export
+* Improved UTF-8 encoding handling
+
 = 1.3.1 =
 * Improved code organization
 * Enhanced error handling
@@ -115,5 +122,5 @@ The plugin provides several filters to extend its functionality:
 
 == Upgrade Notice ==
 
-= 1.3.1 =
-This version adds batch processing, improves error handling, and enhances compatibility with PHP 8.x and WordPress Multisite.
+= 1.3.2 =
+This version fixes an issue where HTML code could appear in exported CSV files and improves the overall export process.
